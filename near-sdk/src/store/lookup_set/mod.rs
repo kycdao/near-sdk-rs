@@ -1,6 +1,6 @@
 mod impls;
 
-use crate::crypto_hash::{CryptoHasher, Sha256};
+use crate::crypto_hash::{Identity, StorageKeyer};
 use crate::{env, IntoStorageKey, StableMap};
 use borsh::{BorshDeserialize, BorshSerialize};
 use once_cell::unsync::OnceCell;
@@ -13,10 +13,11 @@ const ERR_ELEMENT_SERIALIZATION: &str = "Cannot serialize element";
 type LookupKey = [u8; 32];
 
 #[derive(BorshSerialize, BorshDeserialize)]
-pub struct LookupSet<T, H = Sha256>
+pub struct LookupSet<T, H = Identity>
 where
     T: BorshSerialize + Ord,
-    H: CryptoHasher<Digest = [u8; 32]>,
+    H: StorageKeyer,
+    <H as StorageKeyer>::KeyType: AsRef<[u8]>,
 {
     prefix: Box<[u8]>,
 
@@ -43,7 +44,8 @@ pub(crate) enum EntryState {
 impl<T, H> Drop for LookupSet<T, H>
 where
     T: BorshSerialize + Ord,
-    H: CryptoHasher<Digest = [u8; 32]>,
+    H: StorageKeyer,
+    <H as StorageKeyer>::KeyType: AsRef<[u8]>,
 {
     fn drop(&mut self) {
         self.flush()
@@ -53,14 +55,15 @@ where
 impl<T, H> fmt::Debug for LookupSet<T, H>
 where
     T: BorshSerialize + Ord,
-    H: CryptoHasher<Digest = [u8; 32]>,
+    H: StorageKeyer,
+    <H as StorageKeyer>::KeyType: AsRef<[u8]>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("LookupSet").field("prefix", &self.prefix).finish()
     }
 }
 
-impl<T> LookupSet<T, Sha256>
+impl<T> LookupSet<T, Identity>
 where
     T: BorshSerialize + Ord,
 {
@@ -76,7 +79,8 @@ where
 impl<T, H> LookupSet<T, H>
 where
     T: BorshSerialize + Ord,
-    H: CryptoHasher<Digest = [u8; 32]>,
+    H: StorageKeyer,
+    <H as StorageKeyer>::KeyType: AsRef<[u8]>,
 {
     fn lookup_key<Q: ?Sized>(prefix: &[u8], value: &Q, buffer: &mut Vec<u8>) -> LookupKey
     where
@@ -223,7 +227,8 @@ where
 impl<T, H> LookupSet<T, H>
 where
     T: BorshSerialize + Ord,
-    H: CryptoHasher<Digest = [u8; 32]>,
+    H: StorageKeyer,
+    <H as StorageKeyer>::KeyType: AsRef<[u8]>,
 {
     /// Flushes the intermediate values of the set before this is called when the structure is
     /// [`Drop`]ed. This will write all modified values to storage but keep all cached values
@@ -256,7 +261,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::LookupSet;
-    use crate::crypto_hash::{Keccak256, Sha256};
+    use crate::crypto_hash::Keccak256;
     use crate::test_utils::test_env::setup_free;
     use arbitrary::{Arbitrary, Unstructured};
     use rand::seq::SliceRandom;
@@ -314,6 +319,23 @@ mod tests {
     }
 
     #[test]
+    fn identity_compat_v1() {
+        use crate::collections::LookupSet as LS1;
+
+        let mut ls1 = LS1::new(b"m");
+        ls1.insert(&8u8);
+        ls1.insert(&0);
+        assert!(ls1.contains(&8));
+
+        let mut ls2 = LookupSet::new(b"m");
+        assert!(ls2.contains(&8u8));
+        assert!(ls2.remove(&0));
+        ls2.flush();
+
+        assert!(!ls1.contains(&0));
+    }
+
+    #[test]
     fn test_extend() {
         let mut set = LookupSet::new(b"m");
         let mut rng = rand_xorshift::XorShiftRng::seed_from_u64(4);
@@ -340,7 +362,7 @@ mod tests {
 
     #[test]
     fn test_debug() {
-        let set = LookupSet::<u8, Sha256>::new(b"m");
+        let set = LookupSet::<u8>::new(b"m");
 
         assert_eq!(format!("{:?}", set), "LookupSet { prefix: [109] }")
     }
