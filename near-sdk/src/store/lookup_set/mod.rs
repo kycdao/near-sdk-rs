@@ -1,7 +1,8 @@
 mod impls;
 
-use crate::crypto_hash::{Identity, StorageKeyer};
-use crate::{env, IntoStorageKey, StableMap};
+use crate::store::key::{Identity, ToKey};
+use crate::store::LookupMap;
+use crate::IntoStorageKey;
 use borsh::{BorshDeserialize, BorshSerialize};
 use once_cell::unsync::OnceCell;
 use std::borrow::Borrow;
@@ -126,7 +127,7 @@ where
     ///
     /// # Example
     /// ```
-    /// use near_sdk::store::{LookupSet, Keccak256};
+    /// use near_sdk::store::{LookupSet, key::Keccak256};
     ///
     /// let map = LookupSet::<String, Keccak256>::with_hasher(b"m");
     /// ```
@@ -260,7 +261,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::LookupSet;
-    use crate::store::Keccak256;
+    use crate::store::key::Keccak256;
     use crate::test_utils::test_env::setup_free;
     use arbitrary::{Arbitrary, Unstructured};
     use rand::seq::SliceRandom;
