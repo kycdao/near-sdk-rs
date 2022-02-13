@@ -8,7 +8,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, TreeMap, UnorderedSet};
 use near_sdk::json_types::Base64VecU8;
 use near_sdk::{
-    env, AccountId, BorshStorageKey,
+    env, AccountId, Balance, BorshStorageKey,
     CryptoHash, IntoStorageKey, StorageUsage,
 };
 
@@ -147,7 +147,7 @@ impl NTNFT {
     ) -> Token {
         assert_eq!(env::predecessor_account_id(), self.owner_id, "Unauthorized");
 
-        self.internal_mint(token_id, token_owner_id, token_metadata)
+        self.internal_mint(token_id, token_owner_id, token_metadata, None)
     }
 
     /// Mint a new token without checking:
@@ -160,12 +160,14 @@ impl NTNFT {
         token_id: TokenId,
         token_owner_id: AccountId,
         token_metadata: Option<TokenMetadata>,
+        deposit_used: Option<Balance>,
     ) -> Token {
         self.internal_mint_with_refund(
             token_id,
             token_owner_id,
             token_metadata,
             Some(env::predecessor_account_id()),
+            deposit_used,
         )
     }
 
@@ -182,6 +184,7 @@ impl NTNFT {
         token_owner_id: AccountId,
         token_metadata: Option<TokenMetadata>,
         refund_id: Option<AccountId>,
+        deposit_used: Option<Balance>,
     ) -> Token {
         // Remember current storage usage if refund_id is Some
         let initial_storage_usage = refund_id.map(|account_id| (account_id, env::storage_usage()));
@@ -217,7 +220,7 @@ impl NTNFT {
         }
 
         if let Some((id, storage_usage)) = initial_storage_usage {
-            refund_deposit_to_account(env::storage_usage() - storage_usage, id)
+            refund_deposit_to_account(env::storage_usage() - storage_usage, id, deposit_used)
         }
         // Return any extra attached deposit not used for storage
 
