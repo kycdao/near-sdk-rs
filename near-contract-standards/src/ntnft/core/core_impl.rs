@@ -229,7 +229,7 @@ impl NTNFT {
 }
 
 impl NTNFTCore for NTNFT {
-    fn ntnft_token(&self, token_id: TokenId) -> Option<Token> {
+    fn nft_token(&self, token_id: TokenId) -> Option<Token> {
         let owner_id = self.owner_by_id.get(&token_id)?;
         let metadata = self.token_metadata_by_id.as_ref().and_then(|by_id| by_id.get(&token_id));
         Some(Token { token_id, owner_id, metadata })

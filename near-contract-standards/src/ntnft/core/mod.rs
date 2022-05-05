@@ -13,5 +13,5 @@ use crate::ntnft::token::{Token, TokenId};
 /// [core NTNFT standard]: https://nomicon.io/Standards/NTNFT/Core.html
 pub trait NTNFTCore {
     /// Returns the token with the given `token_id` or `null` if no such token.
-    fn ntnft_token(&self, token_id: TokenId) -> Option<Token>;
+    fn nft_token(&self, token_id: TokenId) -> Option<Token>;
 }
